@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, HttpUrl
-
+from fastapi.responses import RedirectResponse
 from aiogram import Bot
 
 # Добавляем корень проекта в путь, чтобы импортировать downloader
@@ -42,6 +42,9 @@ app.add_middleware(
 # Раздаём статику фронтенда на корневом URL
 app.mount("/app", StaticFiles(directory="frontend", html=True), name="frontend")
 
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/app")
 
 # ── Модели ───────────────────────────────────────────────────────────────────
 
