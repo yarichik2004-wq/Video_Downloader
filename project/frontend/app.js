@@ -10,7 +10,7 @@ tg.ready();       // сигнализируем Telegram что приложен
 tg.expand();      // раскрыть на всю высоту экрана
 
 // URL бэкенда — подставь свой после деплоя
-const API_BASE = "https://your-backend.railway.app";
+const API_BASE = "videodownloader-production-7dbf.up.railway.app";
 
 // ── DOM-элементы ─────────────────────────────────────────────────────────────
 
