@@ -15,7 +15,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 load_dotenv()
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("8584036951:AAHmhsGAvpUclbuDK_qdGqeBgIRS9ZMDmf8")
 WEBAPP_URL = os.getenv("WEBAPP_URL")  # https://your-app.railway.app
 
 logging.basicConfig(level=logging.INFO)
