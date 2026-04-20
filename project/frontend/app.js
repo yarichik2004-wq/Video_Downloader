@@ -35,7 +35,7 @@ pasteBtn.addEventListener("click", async () => {
   try {
     const text = await navigator.clipboard.readText();
     urlInput.value = text;
-    urlInput.dispatchEvent(new Event("input"));
+    urlInput.dispatchEvent(new Event("input", { bubbles: true }));
   } catch {
     // В Telegram WebApp clipboard API может быть недоступен
     urlInput.focus();
