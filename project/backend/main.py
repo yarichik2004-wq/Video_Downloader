@@ -26,7 +26,7 @@ from downloader.core import download_video, is_supported_url, get_video_info
 
 load_dotenv()
 
-TOKEN = os.getenv("8584036951:AAHmhsGAvpUclbuDK_qdGqeBgIRS9ZMDmf8")
+TOKEN = os.getenv("8584036951:AAHnGL9Jxp8t7fxTM9EmW8hHP4J-FD7qLWk")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Video Downloader API")

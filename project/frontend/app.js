@@ -1,19 +1,15 @@
 /**
  * 📁 frontend/app.js
- * Логика Telegram Mini App.
  */
 
-// ── Инициализация Telegram WebApp ────────────────────────────────────────────
-
 const tg = window.Telegram.WebApp;
-tg.ready();       // сигнализируем Telegram что приложение загружено
-tg.expand();      // раскрыть на всю высоту экрана
+tg.ready();
+tg.expand();
 
-// URL бэкенда — подставь свой после деплоя
+// !! ЗАМЕНИ НА СВОЙ URL !!
 const API_BASE = "videodownloader-production-7dbf.up.railway.app";
 
-// ── DOM-элементы ─────────────────────────────────────────────────────────────
-
+// ── DOM ──────────────────────────────────────────────────────────────────────
 const urlInput     = document.getElementById("urlInput");
 const pasteBtn     = document.getElementById("pasteBtn");
 const downloadBtn  = document.getElementById("downloadBtn");
@@ -24,47 +20,70 @@ const previewEl    = document.getElementById("preview");
 const previewTitle = document.getElementById("previewTitle");
 const previewDur   = document.getElementById("previewDuration");
 
-// ── Состояние ────────────────────────────────────────────────────────────────
-
-let infoTimer = null;   // таймер для автозапроса инфо о видео
+let infoTimer = null;
 let isLoading = false;
+
+// ── Активация кнопки ──────────────────────────────────────────────────────────
+
+function updateButtonState(url) {
+  const valid = isValidUrl(url);
+  downloadBtn.disabled = !valid;
+  downloadBtn.style.opacity = valid ? "1" : "0.45";
+}
 
 // ── Вставка из буфера ─────────────────────────────────────────────────────────
 
 pasteBtn.addEventListener("click", async () => {
   try {
     const text = await navigator.clipboard.readText();
-    urlInput.value = text;
-    urlInput.dispatchEvent(new Event("input", { bubbles: true }));
+    if (text) {
+      urlInput.value = text;
+      handleUrlChange(text);
+    }
   } catch {
-    // В Telegram WebApp clipboard API может быть недоступен
     urlInput.focus();
   }
 });
 
-// ── Обработка ввода URL ───────────────────────────────────────────────────────
+// ── Ввод / вставка ────────────────────────────────────────────────────────────
 
-urlInput.addEventListener("input", () => {
-  const url = urlInput.value.trim();
+urlInput.addEventListener("input", (e) => {
+  handleUrlChange(e.target.value.trim());
+});
 
-  // Сбрасываем предыдущий таймер
+// Ловим Ctrl+V и долгое нажатие → Вставить
+urlInput.addEventListener("paste", () => {
+  setTimeout(() => handleUrlChange(urlInput.value.trim()), 50);
+});
+
+function handleUrlChange(url) {
   clearTimeout(infoTimer);
   hidePreview();
   hideStatus();
+  updateButtonState(url);
 
   if (isValidUrl(url)) {
-    downloadBtn.disabled = false;
-    // Через 800ms после последнего ввода — запрашиваем инфо о видео
     infoTimer = setTimeout(() => fetchVideoInfo(url), 800);
-  } else {
-    downloadBtn.disabled = true;
   }
-});
+}
 
-// ── Кнопка «Скачать» ─────────────────────────────────────────────────────────
+// ── Анимация кнопки ───────────────────────────────────────────────────────────
+
+["mousedown", "touchstart"].forEach(evt =>
+  downloadBtn.addEventListener(evt, () => {
+    if (!downloadBtn.disabled) downloadBtn.style.transform = "scale(0.97)";
+  }, { passive: true })
+);
+["mouseup", "touchend"].forEach(evt =>
+  downloadBtn.addEventListener(evt, () => {
+    downloadBtn.style.transform = "scale(1)";
+  })
+);
+
+// ── Скачивание ────────────────────────────────────────────────────────────────
 
 downloadBtn.addEventListener("click", async () => {
-  if (isLoading) return;
+  if (isLoading || downloadBtn.disabled) return;
 
   const url = urlInput.value.trim();
   if (!isValidUrl(url)) {
@@ -72,7 +91,6 @@ downloadBtn.addEventListener("click", async () => {
     return;
   }
 
-  // Получаем user_id из Telegram WebApp
   const user = tg.initDataUnsafe?.user;
   if (!user?.id) {
     showStatus("❌ Открой приложение из Telegram", "error");
@@ -89,7 +107,7 @@ downloadBtn.addEventListener("click", async () => {
       body: JSON.stringify({
         url,
         user_id: user.id,
-        init_data: tg.initData,   // для верификации на бэкенде
+        init_data: tg.initData,
       }),
     });
 
@@ -101,19 +119,17 @@ downloadBtn.addEventListener("click", async () => {
       showStatus("✅ Готово! Видео скоро придёт в чат.", "success");
       urlInput.value = "";
       hidePreview();
-      downloadBtn.disabled = true;
-
-      // Haptic feedback в Telegram
+      updateButtonState("");
       tg.HapticFeedback?.notificationOccurred("success");
     }
   } catch (err) {
-    showStatus("❌ Нет соединения с сервером", "error");
+    showStatus("❌ Нет соединения с сервером.", "error");
   } finally {
     setLoading(false);
   }
 });
 
-// ── Предпросмотр видео ────────────────────────────────────────────────────────
+// ── Предпросмотр ──────────────────────────────────────────────────────────────
 
 async function fetchVideoInfo(url) {
   try {
@@ -122,23 +138,17 @@ async function fetchVideoInfo(url) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
     });
-
     if (!res.ok) return;
-
     const data = await res.json();
-
     previewTitle.textContent = data.title || "Видео";
-    previewDur.textContent   = data.duration
-      ? `⏱ ${formatDuration(data.duration)}`
-      : "";
-
+    previewDur.textContent = data.duration ? `⏱ ${formatDuration(data.duration)}` : "";
     previewEl.classList.remove("hidden");
   } catch {
-    // Тихо игнорируем — предпросмотр не критичен
+    // предпросмотр не критичен
   }
 }
 
-// ── Вспомогательные функции ───────────────────────────────────────────────────
+// ── Утилиты ───────────────────────────────────────────────────────────────────
 
 function isValidUrl(str) {
   try {
@@ -162,18 +172,17 @@ function setLoading(state) {
   downloadBtn.disabled = state;
   btnText.textContent = state ? "Скачиваю..." : "Скачать";
   btnSpinner.classList.toggle("hidden", !state);
+  downloadBtn.style.opacity = state ? "0.7" : "1";
 }
 
 function showStatus(msg, type) {
   statusEl.textContent = msg;
-  statusEl.className   = `status ${type}`;
+  statusEl.className = `status ${type}`;
   statusEl.classList.remove("hidden");
 }
 
-function hideStatus() {
-  statusEl.classList.add("hidden");
-}
+function hideStatus() { statusEl.classList.add("hidden"); }
+function hidePreview() { previewEl.classList.add("hidden"); }
 
-function hidePreview() {
-  previewEl.classList.add("hidden");
-}
+// Кнопка изначально бледная
+updateButtonState("");

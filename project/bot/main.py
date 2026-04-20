@@ -15,7 +15,12 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 load_dotenv()
 
-TOKEN = os.getenv("8584036951:AAHmhsGAvpUclbuDK_qdGqeBgIRS9ZMDmf8")
+# БЫЛО:
+
+
+# СТАЛО — добавь печать для диагностики:
+TOKEN = os.getenv("BOT_TOKEN")
+
 WEBAPP_URL = os.getenv("videodownloader-production-7dbf.up.railway.app")  # https://your-app.railway.app
 
 logging.basicConfig(level=logging.INFO)
