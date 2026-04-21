@@ -81,9 +81,8 @@ function handleUrlChange(url) {
 );
 
 // ── Скачивание ────────────────────────────────────────────────────────────────
-
 downloadBtn.addEventListener("click", async () => {
-  if (isLoading || downloadBtn.disabled) return;
+  alert("Кнопка нажата, URL: " + urlInput.value.trim()); // временно
 
   const url = urlInput.value.trim();
   if (!isValidUrl(url)) {
