@@ -7,7 +7,7 @@ tg.ready();
 tg.expand();
 
 // !! ЗАМЕНИ НА СВОЙ URL !!
-const API_BASE = "https://videodownloader-production-7dbf.up.railway.app";;
+const API_BASE = "https://videodownloader-production-7dbf.up.railway.app";
 
 // ── DOM ──────────────────────────────────────────────────────────────────────
 const urlInput     = document.getElementById("urlInput");
