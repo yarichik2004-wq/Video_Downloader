@@ -47,17 +47,6 @@ pasteBtn.addEventListener("click", async () => {
 
 // ── Ввод / вставка ────────────────────────────────────────────────────────────
 
-urlInput.addEventListener("input", (e) => {
-  handleUrlChange(e.target.value.trim());
-});
-
-// Ловим Ctrl+V и долгое нажатие → Вставить
-urlInput.addEventListener("paste", () => {
-  setTimeout(() => handleUrlChange(urlInput.value.trim()), 50);
-});
-urlInput.addEventListener("keyup", (e) => {
-  handleUrlChange(e.target.value.trim());
-});
 
 function handleUrlChange(url) {
   alert("handleUrlChange вызван: " + url); // временно
@@ -186,6 +175,15 @@ function showStatus(msg, type) {
 
 function hideStatus() { statusEl.classList.add("hidden"); }
 function hidePreview() { previewEl.classList.add("hidden"); }
+
+// Полинг поля ввода каждые 500ms — работает везде включая Telegram WebApp
+setInterval(() => {
+  const url = urlInput.value.trim();
+  const valid = isValidUrl(url);
+  downloadBtn.disabled = !valid;
+  downloadBtn.style.opacity = valid ? "1" : "0.45";
+}, 500);
+
 
 // Кнопка изначально бледная
 updateButtonState("");
