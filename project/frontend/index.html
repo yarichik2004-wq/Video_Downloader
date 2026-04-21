@@ -1,36 +1,56 @@
 <!DOCTYPE html>
+<!--
+  📁 frontend/index.html
+-->
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Video Downloader</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Video Downloader</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h2>Скачать видео</h2>
-        
-        <div id="debugLog" style="font-size: 10px; color: gray; background: #f0f0f0; padding: 5px; margin-bottom: 10px; max-height: 60px; overflow: auto;">
-            Статус: Инициализация...
-        </div>
+  <div class="container">
 
-        <div class="input-group">
-            <input type="text" id="urlInput" placeholder="Вставьте ссылку на видео...">
-        </div>
+    <header class="header">
+      <div class="logo">🎬</div>
+      <h1>Video Downloader</h1>
+      <p class="subtitle">YouTube · TikTok · Instagram</p>
+    </header>
 
-        <div id="errorBubble" class="error-bubble hidden">
-            Не удалось распознать ссылку (YouTube, TikTok, Insta)
-        </div>
+    <main>
+      <div class="input-group">
+        <input
+          type="text"
+          id="urlInput"
+          placeholder="Вставь ссылку на видео..."
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
+      </div>
 
-        <button id="downloadBtn" class="download-btn hidden">
-            <span id="btnSpinner" class="spinner hidden"></span>
-            <span id="btnText">Скачать</span>
-        </button>
+      <div class="platforms">
+        <span class="platform">▶ YouTube</span>
+        <span class="platform">♪ TikTok</span>
+        <span class="platform">◈ Instagram</span>
+      </div>
 
-        <div id="status" class="status hidden"></div>
-    </div>
+      <button id="downloadBtn" class="btn-download">
+        <span id="btnSpinner" class="spinner hidden"></span>
+        <span id="btnText">Скачать</span>
+      </button>
 
-    <script src="app.js?v=1.4"></script>
+      <div id="status" class="status hidden"></div>
+    </main>
+
+    <footer class="footer">
+      <p>Видео придёт в чат после скачивания</p>
+    </footer>
+
+  </div>
+
+  <script src="app.js?v=5"></script>
 </body>
 </html>
