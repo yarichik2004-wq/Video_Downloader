@@ -31,6 +31,7 @@ dp = Dispatcher()
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
+    print(f"Пришла команда старт от {message.from_user.id}") # Это появится в логах Railway
     kb = InlineKeyboardBuilder()
     kb.button(text="🎬 Скачать видео", web_app=WebAppInfo(url=WEBAPP_URL))
     await message.answer(
@@ -66,24 +67,20 @@ async def on_startup(bot: Bot):
     await bot.set_webhook(WEBHOOK_URL)
     logger.info(f"🚀 Webhook set to: {WEBHOOK_URL}")
 
+# Измените функцию main следующим образом:
 def main():
-    # Мы не используем dp.start_polling() здесь!
-    
     app = web.Application()
 
-    # Настраиваем обработчик запросов от Telegram
+    # РЕГИСТРИРУЕМ startup событие здесь:
+    dp.startup.register(on_startup)
+
     webhook_requests_handler = SimpleRequestHandler(
         dispatcher=dp,
         bot=bot
     )
     webhook_requests_handler.register(app, path=WEBHOOK_PATH)
 
-    # Привязываем startup/shutdown к приложению aiohttp
-    # Важно: передаем bot в setup_application
     setup_application(app, dp, bot=bot)
-
-    # Регистрируем функцию on_startup через диспетчер aiogram
-    dp.startup.register(on_startup)
 
     port = int(os.getenv("PORT", 8080))
     web.run_app(app, host="0.0.0.0", port=port)
