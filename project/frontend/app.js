@@ -1,189 +1,102 @@
-/**
- * 📁 frontend/app.js
- */
-
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
-// !! ЗАМЕНИ НА СВОЙ URL !!
 const API_BASE = "https://videodownloader-production-7dbf.up.railway.app";
 
-// ── DOM ──────────────────────────────────────────────────────────────────────
-const urlInput     = document.getElementById("urlInput");
-const pasteBtn     = document.getElementById("pasteBtn");
-const downloadBtn  = document.getElementById("downloadBtn");
-const btnText      = document.getElementById("btnText");
-const btnSpinner   = document.getElementById("btnSpinner");
-const statusEl     = document.getElementById("status");
-const previewEl    = document.getElementById("preview");
-const previewTitle = document.getElementById("previewTitle");
-const previewDur   = document.getElementById("previewDuration");
+const urlInput = document.getElementById("urlInput");
+const downloadBtn = document.getElementById("downloadBtn");
+const errorBubble = document.getElementById("errorBubble");
+const btnText = document.getElementById("btnText");
+const btnSpinner = document.getElementById("btnSpinner");
+const statusEl = document.getElementById("status");
 
-let infoTimer = null;
-let isLoading = false;
-
-// ── Активация кнопки ──────────────────────────────────────────────────────────
-
-function updateButtonState(url) {
-  const valid = isValidUrl(url);
-  downloadBtn.disabled = !valid;
-  downloadBtn.style.opacity = valid ? "1" : "0.45";
-}
-
-// ── Вставка из буфера ─────────────────────────────────────────────────────────
-
-pasteBtn.addEventListener("click", async () => {
-  try {
-    const text = await navigator.clipboard.readText();
-    if (text) {
-      urlInput.value = text;
-      handleUrlChange(text);
+// Улучшенная проверка ссылки
+function checkUrl(str) {
+    if (!str) return { valid: false, empty: true };
+    
+    const domains = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"];
+    try {
+        const url = new URL(str);
+        const isValid = domains.some(d => url.hostname.includes(d));
+        return { valid: isValid, empty: false };
+    } catch (e) {
+        return { valid: false, empty: false };
     }
-  } catch {
-    urlInput.focus();
-  }
-});
-
-// ── Ввод / вставка ────────────────────────────────────────────────────────────
-
-
-function handleUrlChange(url) {
-  alert("handleUrlChange вызван: " + url); // временно
-  clearTimeout(infoTimer);
-  hidePreview();
-  hideStatus();
-  updateButtonState(url);
-
-  if (isValidUrl(url)) {
-    infoTimer = setTimeout(() => fetchVideoInfo(url), 800);
-  }
 }
 
-// ── Анимация кнопки ───────────────────────────────────────────────────────────
+// Главный обработчик ввода
+function handleInput() {
+    const val = urlInput.value.trim();
+    const result = checkUrl(val);
 
-["mousedown", "touchstart"].forEach(evt =>
-  downloadBtn.addEventListener(evt, () => {
-    if (!downloadBtn.disabled) downloadBtn.style.transform = "scale(0.97)";
-  }, { passive: true })
-);
-["mouseup", "touchend"].forEach(evt =>
-  downloadBtn.addEventListener(evt, () => {
-    downloadBtn.style.transform = "scale(1)";
-  })
-);
+    if (result.empty) {
+        downloadBtn.classList.add("hidden");
+        errorBubble.classList.add("hidden");
+        return;
+    }
 
-// ── Скачивание ────────────────────────────────────────────────────────────────
-downloadBtn.addEventListener("click", async () => {
-  alert("Кнопка нажата, URL: " + urlInput.value.trim()); // временно
-
-  const url = urlInput.value.trim();
-  if (!isValidUrl(url)) {
-    showStatus("⚠️ Введи корректную ссылку", "error");
-    return;
-  }
-
-  const user = tg.initDataUnsafe?.user;
-  if (!user?.id) {
-    showStatus("❌ Открой приложение из Telegram", "error");
-    return;
-  }
-
-  setLoading(true);
-  showStatus("⏳ Отправляю запрос...", "info");
-
-  try {
-    const res = await fetch(`${API_BASE}/api/download`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url,
-        user_id: user.id,
-        init_data: tg.initData,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      showStatus(`❌ ${data.detail || "Ошибка сервера"}`, "error");
+    if (result.valid) {
+        downloadBtn.classList.remove("hidden");
+        errorBubble.classList.add("hidden");
     } else {
-      showStatus("✅ Готово! Видео скоро придёт в чат.", "success");
-      urlInput.value = "";
-      hidePreview();
-      updateButtonState("");
-      tg.HapticFeedback?.notificationOccurred("success");
+        downloadBtn.classList.add("hidden");
+        errorBubble.classList.remove("hidden");
     }
-  } catch (err) {
-    showStatus("❌ Нет соединения с сервером.", "error");
-  } finally {
-    setLoading(false);
-  }
+}
+
+// Слушаем и ввод, и вставку
+urlInput.addEventListener("input", handleInput);
+urlInput.addEventListener("paste", () => setTimeout(handleInput, 100));
+
+// Клик по кнопке
+downloadBtn.addEventListener("click", async () => {
+    const url = urlInput.value.trim();
+    const user = tg.initDataUnsafe?.user;
+
+    if (!user?.id) {
+        showStatus("❌ Ошибка: Откройте через Telegram", "error");
+        return;
+    }
+
+    setLoading(true);
+
+    try {
+        const response = await fetch(`${API_BASE}/api/download`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                url: url,
+                user_id: user.id,
+                init_data: tg.initData
+            }),
+        });
+
+        if (response.ok) {
+            tg.HapticFeedback?.notificationOccurred("success");
+            showStatus("✅ Запрос отправлен! Видео придет в чат.", "success");
+            urlInput.value = "";
+            downloadBtn.classList.add("hidden");
+        } else {
+            const errorData = await response.json();
+            showStatus(`❌ Ошибка: ${errorData.detail || "Сервер не смог обработать ссылку"}`, "error");
+        }
+    } catch (err) {
+        showStatus("❌ Ошибка соединения с Railway", "error");
+    } finally {
+        setLoading(false);
+    }
 });
 
-// ── Предпросмотр ──────────────────────────────────────────────────────────────
-
-async function fetchVideoInfo(url) {
-  try {
-    const res = await fetch(`${API_BASE}/api/info`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-    if (!res.ok) return;
-    const data = await res.json();
-    previewTitle.textContent = data.title || "Видео";
-    previewDur.textContent = data.duration ? `⏱ ${formatDuration(data.duration)}` : "";
-    previewEl.classList.remove("hidden");
-  } catch {
-    // предпросмотр не критичен
-  }
-}
-
-// ── Утилиты ───────────────────────────────────────────────────────────────────
-
-function isValidUrl(str) {
-  try {
-    const url = new URL(str);
-    return ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"].some(
-      (d) => url.hostname.includes(d)
-    );
-  } catch {
-    return false;
-  }
-}
-
-function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function setLoading(state) {
-  isLoading = state;
-  downloadBtn.disabled = state;
-  btnText.textContent = state ? "Скачиваю..." : "Скачать";
-  btnSpinner.classList.toggle("hidden", !state);
-  downloadBtn.style.opacity = state ? "0.7" : "1";
+function setLoading(isLoading) {
+    downloadBtn.disabled = isLoading;
+    btnText.textContent = isLoading ? "Загрузка..." : "Скачать";
+    btnSpinner.classList.toggle("hidden", !isLoading);
 }
 
 function showStatus(msg, type) {
-  statusEl.textContent = msg;
-  statusEl.className = `status ${type}`;
-  statusEl.classList.remove("hidden");
+    statusEl.textContent = msg;
+    statusEl.className = `status ${type}`;
+    statusEl.classList.remove("hidden");
+    setTimeout(() => statusEl.classList.add("hidden"), 5000);
 }
-
-function hideStatus() { statusEl.classList.add("hidden"); }
-function hidePreview() { previewEl.classList.add("hidden"); }
-
-// Полинг поля ввода каждые 500ms — работает везде включая Telegram WebApp
-setInterval(() => {
-  const url = urlInput.value.trim();
-  const valid = isValidUrl(url);
-  downloadBtn.disabled = !valid;
-  downloadBtn.style.opacity = valid ? "1" : "0.45";
-}, 500);
-
-
-// Кнопка изначально бледная
-updateButtonState("");

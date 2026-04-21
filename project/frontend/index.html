@@ -1,70 +1,32 @@
 <!DOCTYPE html>
-<!--
-  📁 frontend/index.html
-  Главная страница Telegram Mini App.
--->
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Video Downloader</title>
-  <!-- Обязательный SDK Telegram WebApp -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Video Downloader</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-
-    <header class="header">
-      <div class="logo">🎬</div>
-      <h1>Video Downloader</h1>
-      <p class="subtitle">YouTube · TikTok · Instagram</p>
-    </header>
-
-    <main>
-      <div class="input-group">
-        <input
-          type="url"
-          id="urlInput"
-          placeholder="Вставь ссылку на видео..."
-          autocomplete="off"
-          autocorrect="off"
-          spellcheck="false"
-        >
-        <button id="pasteBtn" class="btn-paste" title="Вставить из буфера">📋</button>
-      </div>
-
-      <!-- Плашки поддерживаемых платформ -->
-      <div class="platforms">
-        <span class="platform">▶ YouTube</span>
-        <span class="platform">♪ TikTok</span>
-        <span class="platform">◈ Instagram</span>
-      </div>
-
-      <!-- Блок предпросмотра (появляется после ввода ссылки) -->
-      <div id="preview" class="preview hidden">
-        <div class="preview-icon" id="previewIcon">🎥</div>
-        <div class="preview-info">
-          <p id="previewTitle" class="preview-title"></p>
-          <p id="previewDuration" class="preview-duration"></p>
+    <div class="container">
+        <h2>Скачать видео</h2>
+        
+        <div class="input-group">
+            <input type="text" id="urlInput" placeholder="Вставьте ссылку на видео...">
         </div>
-      </div>
 
-      <button id="downloadBtn" class="btn-download" disabled>
-        <span id="btnText">Скачать</span>
-        <span id="btnSpinner" class="spinner hidden"></span>
-      </button>
+        <div id="errorBubble" class="error-bubble hidden">
+            Не удалось распознать ссылку (YouTube, TikTok, Insta)
+        </div>
 
-      <!-- Статус-сообщение -->
-      <div id="status" class="status hidden"></div>
-    </main>
+        <button id="downloadBtn" class="download-btn hidden">
+            <span id="btnSpinner" class="spinner hidden"></span>
+            <span id="btnText">Скачать</span>
+        </button>
 
-    <footer class="footer">
-      <p>Видео придёт в чат после скачивания</p>
-    </footer>
+        <div id="status" class="status hidden"></div>
+    </div>
 
-  </div>
-
-  <script src="app.js?v=2"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
