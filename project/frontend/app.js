@@ -57,8 +57,11 @@ window.addEventListener("load", () => {
     }
 
     const user = tg?.initDataUnsafe?.user;
-    if (!user?.id) {
-      showStatus("❌ Открой приложение из Telegram", "error");
+    const userId = user?.id || tg?.initDataUnsafe?.user?.id || null;
+
+    if (!userId) {
+      // Для отладки — покажем что реально приходит от Telegram
+      showStatus("Debug: " + JSON.stringify(tg?.initDataUnsafe), "error");
       return;
     }
 
