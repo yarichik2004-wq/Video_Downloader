@@ -21,13 +21,26 @@ load_dotenv()
 # СТАЛО — добавь печать для диагностики:
 TOKEN = os.getenv("BOT_TOKEN")
 
-WEBAPP_URL = os.getenv("videodownloader-production-7dbf.up.railway.app")  # https://your-app.railway.app
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
+    webapp_url = os.getenv("WEBAPP_URL")  # читаем здесь
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text="🎬 Скачать видео",
+        web_app=WebAppInfo(url=webapp_url)
+    )
+    await message.answer(
+        "👋 Привет! Нажми кнопку ниже чтобы открыть приложение.",
+        reply_markup=kb.as_markup()
+    )
+
+
 
 
 @dp.message(Command("start"))
