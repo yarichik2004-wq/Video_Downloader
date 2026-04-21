@@ -55,8 +55,12 @@ urlInput.addEventListener("input", (e) => {
 urlInput.addEventListener("paste", () => {
   setTimeout(() => handleUrlChange(urlInput.value.trim()), 50);
 });
+urlInput.addEventListener("keyup", (e) => {
+  handleUrlChange(e.target.value.trim());
+});
 
 function handleUrlChange(url) {
+  alert("handleUrlChange вызван: " + url); // временно
   clearTimeout(infoTimer);
   hidePreview();
   hideStatus();
