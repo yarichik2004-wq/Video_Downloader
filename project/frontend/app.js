@@ -12,33 +12,31 @@ const btnSpinner = document.getElementById("btnSpinner");
 const statusEl = document.getElementById("status");
 
 // Улучшенная проверка ссылки
+// Супер-простая проверка: просто ищем ключевые слова в строке
 function checkUrl(str) {
-    if (!str) return { valid: false, empty: true };
+    if (!str || str.length < 5) return { valid: false, empty: true };
     
-    const domains = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"];
-    try {
-        const url = new URL(str);
-        const isValid = domains.some(d => url.hostname.includes(d));
-        return { valid: isValid, empty: false };
-    } catch (e) {
-        return { valid: false, empty: false };
-    }
+    const lowStr = str.toLowerCase();
+    const hasDomain = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"].some(d => lowStr.includes(d));
+    
+    return { valid: hasDomain, empty: false };
 }
 
-// Главный обработчик ввода
 function handleInput() {
     const val = urlInput.value.trim();
     const result = checkUrl(val);
 
+    // Лог для отладки — если увидишь этот алерт, значит событие работает
+    console.log("Ввод:", val, "Валидность:", result.valid);
+
     if (result.empty) {
         downloadBtn.classList.add("hidden");
         errorBubble.classList.add("hidden");
-        return;
-    }
-
-    if (result.valid) {
+    } else if (result.valid) {
         downloadBtn.classList.remove("hidden");
         errorBubble.classList.add("hidden");
+        // Принудительно ставим прозрачность 1, если CSS мешает
+        downloadBtn.style.display = "block"; 
     } else {
         downloadBtn.classList.add("hidden");
         errorBubble.classList.remove("hidden");
@@ -100,3 +98,10 @@ function showStatus(msg, type) {
     statusEl.classList.remove("hidden");
     setTimeout(() => statusEl.classList.add("hidden"), 5000);
 }
+
+// Запасной механизм: проверяем поле, если пользователь что-то вставил, но событие не сработало
+setInterval(() => {
+    if (urlInput.value.trim().length > 5 && downloadBtn.classList.contains("hidden")) {
+        handleInput();
+    }
+}, 500);
