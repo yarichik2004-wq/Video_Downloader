@@ -83,6 +83,13 @@ def main():
     setup_application(app, dp, bot=bot)
 
     port = int(os.getenv("PORT", 8080))
+    async def debug_middleware(app, handler):
+        async def middleware_handler(request):
+            print(f"📥 Incoming request: {request.method} {request.path}")
+            return await handler(request)
+        return middleware_handler
+
+    app.middlewares.append(debug_middleware)
     web.run_app(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
