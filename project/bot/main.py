@@ -1,25 +1,25 @@
-"""
-📁 bot/main.py
-Telegram-бот: показывает кнопку открытия Mini App и принимает команды.
-"""
-
-import asyncio
 import logging
 import os
 from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import Message, WebAppInfo
+from aiogram.types import Message, CallbackQuery, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
 
 load_dotenv()
 
-# БЫЛО:
-
-
-# СТАЛО — добавь печать для диагностики:
 TOKEN = os.getenv("BOT_TOKEN")
+WEBAPP_URL = os.getenv("WEBAPP_URL")
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST")
+WEBHOOK_PATH = "/webhook"
+
+if WEBHOOK_HOST and WEBHOOK_HOST.endswith("/"):
+    WEBHOOK_HOST = WEBHOOK_HOST[:-1]
+
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,57 +27,66 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-@dp.message(Command("start"))
-async def cmd_start(message: Message):
-    webapp_url = os.getenv("WEBAPP_URL")  # читаем здесь
-    kb = InlineKeyboardBuilder()
-    kb.button(
-        text="🎬 Скачать видео",
-        web_app=WebAppInfo(url=webapp_url)
-    )
-    await message.answer(
-        "👋 Привет! Нажми кнопку ниже чтобы открыть приложение.",
-        reply_markup=kb.as_markup()
-    )
-
-
-
+# --- ХЕНДЛЕРЫ ---
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     kb = InlineKeyboardBuilder()
-    kb.button(
-        text="🎬 Скачать видео",
-        web_app=WebAppInfo(url=WEBAPP_URL)
-    )
+    kb.button(text="🎬 Скачать видео", web_app=WebAppInfo(url=WEBAPP_URL))
     await message.answer(
-        "👋 Привет! Я скачиваю видео с YouTube, TikTok и Instagram.\n\n"
-        "Нажми кнопку ниже, вставь ссылку — и видео придёт сюда в чат.",
+        "👋 Привет! Нажми кнопку ниже, чтобы открыть приложение.",
         reply_markup=kb.as_markup()
     )
-
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
-    await message.answer(
-        "📖 <b>Как пользоваться:</b>\n\n"
-        "1. Нажми /start\n"
-        "2. Открой приложение\n"
-        "3. Вставь ссылку на видео\n"
-        "4. Нажми «Скачать»\n"
-        "5. Видео придёт прямо в этот чат\n\n"
-        "<b>Поддерживаемые сайты:</b>\n"
-        "✅ YouTube\n"
-        "✅ TikTok\n"
-        "✅ Instagram (только публичные посты)",
-        parse_mode="HTML"
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🎬 Поддерживаемые сайты", callback_data="faq_sites")
+    kb.button(text="⚠️ Ошибки", callback_data="faq_error")
+    kb.adjust(1)
+    await message.answer("❓ Помощь по боту:", reply_markup=kb.as_markup())
+
+@dp.callback_query(F.data.startswith("faq_"))
+async def faq_handlers(call: CallbackQuery):
+    responses = {
+        "faq_sites": "✅ YouTube, TikTok, Instagram.",
+        "faq_error": "⚠️ Проверь ссылку, она должна быть публичной."
+    }
+    await call.message.edit_text(responses.get(call.data, "Инфо отсутствует"), parse_mode="HTML")
+    await call.answer()
+
+# --- ЛОГИКА ЗАПУСКА ---
+
+async def on_startup(bot: Bot):
+    # 1. Удаляем вебхук и ОЧИЩАЕМ накопившиеся сообщения (drop_pending_updates)
+    # Это критично, чтобы убрать ошибку Conflict
+    await bot.delete_webhook(drop_pending_updates=True)
+    
+    # 2. Ставим вебхук заново
+    await bot.set_webhook(WEBHOOK_URL)
+    logger.info(f"🚀 Webhook set to: {WEBHOOK_URL}")
+
+def main():
+    # Мы не используем dp.start_polling() здесь!
+    
+    app = web.Application()
+
+    # Настраиваем обработчик запросов от Telegram
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot
     )
+    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
 
+    # Привязываем startup/shutdown к приложению aiohttp
+    # Важно: передаем bot в setup_application
+    setup_application(app, dp, bot=bot)
 
-async def main():
-    logger.info("Bot started")
-    await dp.start_polling(bot)
+    # Регистрируем функцию on_startup через диспетчер aiogram
+    dp.startup.register(on_startup)
 
+    port = int(os.getenv("PORT", 8080))
+    web.run_app(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
