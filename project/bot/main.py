@@ -3,7 +3,7 @@
 Простой бот — принимает ссылку, скачивает видео, отправляет пользователю.
 Никакого бэкенда, никакого Mini App.
 """
-
+from aiogram.types import Message, CallbackQuery, BufferedInputFile
 import asyncio
 import logging
 import os
@@ -115,11 +115,13 @@ async def handle_message(message: Message):
 
         # Отправляем видео
         with open(filepath, "rb") as f:
-            await message.answer_video(
-                video=f,
-                caption="✅ Готово!",
-                supports_streaming=True,
-            )
+            video_data = f.read()
+
+        await message.answer_video(
+            video=BufferedInputFile(video_data, filename="video.mp4"),
+            caption="✅ Готово!",
+            supports_streaming=True,
+        )
 
     except Exception as e:
         logger.error(f"Download failed: {e}")
