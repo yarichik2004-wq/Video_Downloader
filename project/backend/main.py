@@ -1,7 +1,7 @@
 """
 📁 backend/main.py
-FastAPI-сервер: принимает запросы от фронтенда,
-скачивает видео и отправляет их пользователю через бота.
+FastAPI сервер — обрабатывает API запросы, статику и webhook бота.
+Всё на одном порту 8000.
 """
 
 import os
@@ -9,29 +9,50 @@ import asyncio
 import logging
 import hashlib
 import hmac
-from urllib.parse import unquote, parse_qsl
+from contextlib import asynccontextmanager
+from urllib.parse import parse_qsl
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, HttpUrl
 from fastapi.responses import RedirectResponse
-from aiogram import Bot
+from pydantic import BaseModel
+from aiogram.types import Update
 
-# Добавляем корень проекта в путь, чтобы импортировать downloader
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from downloader.core import download_video, is_supported_url, get_video_info
+from bot.main import bot, dp
 
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "").rstrip("/")
+WEBHOOK_PATH = "/webhook"
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Video Downloader API")
 
-# Разрешаем запросы с фронтенда (нужно для Telegram WebApp)
+# ── Lifespan — запуск и остановка ────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Старт
+    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.set_webhook(WEBHOOK_URL)
+    logger.info(f"Webhook set: {WEBHOOK_URL}")
+    yield
+    # Остановка
+    await bot.delete_webhook()
+    await bot.session.close()
+    logger.info("Webhook deleted")
+
+
+app = FastAPI(title="Video Downloader API", lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,19 +60,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Раздаём статику фронтенда на корневом URL
-app.mount("/app", StaticFiles(directory="frontend", html=True), name="frontend")
+# Путь к frontend/ от корня проекта
+frontend_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend"
+)
+
+
+# ── Редирект с / на /app ──────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
     return RedirectResponse(url="/app")
 
-# ── Модели ───────────────────────────────────────────────────────────────────
+
+# ── Webhook для Telegram ──────────────────────────────────────────────────────
+
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+    update = Update.model_validate(data, context={"bot": bot})
+    await dp.feed_update(bot, update)
+    return {"ok": True}
+
+
+# ── Модели ────────────────────────────────────────────────────────────────────
 
 class DownloadRequest(BaseModel):
     url: str
     user_id: int
-    init_data: str  # Данные для верификации от Telegram WebApp
+    init_data: str
 
 
 class InfoRequest(BaseModel):
@@ -61,104 +98,77 @@ class InfoRequest(BaseModel):
 # ── Верификация Telegram initData ─────────────────────────────────────────────
 
 def verify_telegram_init_data(init_data: str, bot_token: str) -> bool:
-    """
-    Проверяет подпись initData от Telegram WebApp.
-    Документация: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
-    """
     try:
+        if not init_data:
+            return False
         parsed = dict(parse_qsl(init_data, strict_parsing=True))
         received_hash = parsed.pop("hash", None)
         if not received_hash:
             return False
-
-        # Строка для проверки: ключи отсортированы и соединены \n
         data_check_string = "\n".join(
             f"{k}={v}" for k, v in sorted(parsed.items())
         )
-
         secret_key = hmac.new(
             b"WebAppData", bot_token.encode(), hashlib.sha256
         ).digest()
-
         expected_hash = hmac.new(
             secret_key, data_check_string.encode(), hashlib.sha256
         ).hexdigest()
-
         return hmac.compare_digest(expected_hash, received_hash)
     except Exception:
         return False
 
 
-# ── Эндпоинты ────────────────────────────────────────────────────────────────
+# ── API эндпоинты ─────────────────────────────────────────────────────────────
 
 @app.get("/health")
 async def health():
-    """Проверка работоспособности сервера."""
     return {"status": "ok"}
 
 
 @app.post("/api/info")
 async def video_info(req: InfoRequest):
-    """Возвращает метаданные видео (название, длительность) без скачивания."""
     if not is_supported_url(req.url):
-        raise HTTPException(400, "Неподдерживаемый сайт. Используй YouTube, TikTok или Instagram.")
+        raise HTTPException(400, "Неподдерживаемый сайт.")
     try:
         info = get_video_info(req.url)
         return info
     except Exception as e:
-        raise HTTPException(400, f"Не удалось получить информацию о видео: {str(e)}")
+        raise HTTPException(400, f"Не удалось получить информацию: {str(e)}")
 
 
 @app.post("/api/download")
 async def download(req: DownloadRequest):
-    """
-    Принимает URL и user_id.
-    Скачивает видео в фоне и отправляет пользователю через бота.
-    """
-    # 1. Верифицируем запрос (защита от подделки user_id)
     if not verify_telegram_init_data(req.init_data, TOKEN):
-        raise HTTPException(403, "Неверная подпись Telegram. Открой приложение из Telegram.")
-
-    # 2. Проверяем URL
+        raise HTTPException(403, "Неверная подпись Telegram.")
     if not is_supported_url(req.url):
         raise HTTPException(400, "Неподдерживаемый сайт.")
-
-    # 3. Запускаем скачивание в фоне (не блокируем ответ)
     asyncio.create_task(_download_and_send(req.url, req.user_id))
-
-    return {"status": "downloading", "message": "Видео скачивается, скоро придёт в чат!"}
+    return {"status": "downloading"}
 
 
 async def _download_and_send(url: str, user_id: int):
-    """Фоновая задача: скачать видео и отправить пользователю."""
     filepath = None
-    bot = Bot(token=TOKEN)
     try:
-        # Уведомляем пользователя что начали скачивать
         await bot.send_message(user_id, "⏳ Скачиваю видео, подождите...")
-
-        # Скачиваем (это синхронная операция — запускаем в executor)
         loop = asyncio.get_event_loop()
         filepath = await loop.run_in_executor(None, download_video, url)
-
-        # Отправляем видео
-        with open(filepath, "rb") as video_file:
+        with open(filepath, "rb") as f:
             await bot.send_video(
                 chat_id=user_id,
-                video=video_file,
+                video=f,
                 caption="✅ Готово!",
                 supports_streaming=True,
             )
-
     except Exception as e:
-        logger.error(f"Download failed for user {user_id}: {e}")
-        await bot.send_message(
-            user_id,
-            f"❌ Не удалось скачать видео.\n\nПричина: {str(e)}\n\n"
-            "Попробуй другую ссылку или убедись, что пост публичный."
-        )
+        logger.error(f"Download failed for {user_id}: {e}")
+        await bot.send_message(user_id, f"❌ Не удалось скачать.\n\n{str(e)}")
     finally:
-        # Всегда удаляем файл с сервера
         if filepath and os.path.exists(filepath):
             os.remove(filepath)
-        await bot.session.close()
+
+
+# ── Статика фронтенда — ПОСЛЕДНЕЙ ────────────────────────────────────────────
+# Важно монтировать после всех маршрутов
+
+app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="frontend")
