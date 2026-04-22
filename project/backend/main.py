@@ -121,6 +121,14 @@ def verify_telegram_init_data(init_data: str, bot_token: str) -> bool:
 async def health():
     return {"status": "ok"}
 
+@app.get("/check-webhook")
+async def check_webhook():
+    info = await bot.get_webhook_info()
+    return {
+        "url": info.url,
+        "pending_updates": info.pending_update_count,
+        "last_error": info.last_error_message,
+    } 
 
 @app.post("/api/info")
 async def video_info(req: InfoRequest):
