@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 DOWNLOAD_DIR = "/tmp/videos"
 MAX_FILESIZE = 50 * 1024 * 1024  # 50 MB
 # Путь к файлу внутри контейнера (если положил в корень проекта)
-COOKIES_PATH = os.path.join(os.getcwd(), "cookies.txt")
+COOKIES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt")
 
 SUPPORTED_DOMAINS = [
     "youtube.com", "youtu.be",
@@ -37,6 +37,9 @@ def get_video_info(url: str) -> dict:
 
 def download_video(url: str) -> str:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    
+    cookies_exist = os.path.exists(COOKIES_PATH)
+    logger.info(f"Cookies file exists: {cookies_exist}, path: {COOKIES_PATH}")
 
     unique_id = uuid.uuid4().hex
     output_template = os.path.join(DOWNLOAD_DIR, f"{unique_id}.%(ext)s")
