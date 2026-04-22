@@ -57,11 +57,11 @@ window.addEventListener("load", () => {
     }
 
     const user = tg?.initDataUnsafe?.user;
-    const userId = user?.id || tg?.initDataUnsafe?.user?.id || null;
+    const userId = tg?.initDataUnsafe?.user?.id 
+      || new URLSearchParams(window.location.search).get("uid");
 
     if (!userId) {
-      // Для отладки — покажем что реально приходит от Telegram
-      showStatus("Debug: " + JSON.stringify(tg?.initDataUnsafe), "error");
+      showStatus("❌ Открой приложение через кнопку в боте", "error");
       return;
     }
 
@@ -82,7 +82,7 @@ window.addEventListener("load", () => {
       const data = await res.json();
 
       if (!res.ok) {
-        showStatus(`❌ ${data.detail || "Ошибка сервера"}`, "error");
+        showStatus("❌ Открой приложение через кнопку в боте", "error");
       } else {
         showStatus("✅ Готово! Видео скоро придёт в чат.", "success");
         urlInput.value = "";
