@@ -12,5 +12,5 @@ COPY . .
 
 RUN mkdir -p /tmp/videos
 
-# Только один процесс — FastAPI управляет всем включая webhook бота
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Только бот — никакого FastAPI
+CMD ["python", "bot/main.py"]

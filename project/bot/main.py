@@ -1,17 +1,22 @@
 """
 📁 bot/main.py
-Только хендлеры — без запуска сервера.
-Webhook регистрирует backend/main.py
+Простой бот — принимает ссылку, скачивает видео, отправляет пользователю.
+Никакого бэкенда, никакого Mini App.
 """
 
+import asyncio
 import logging
 import os
 from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, WebAppInfo
+from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from downloader.core import download_video, is_supported_url
 
 load_dotenv()
 
@@ -23,16 +28,19 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
+SUPPORTED = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"]
+
+
+# ── Команды ───────────────────────────────────────────────────────────────────
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    webapp_url = os.getenv("WEBAPP_URL")
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🎬 Скачать видео", web_app=WebAppInfo(url=webapp_url))
     await message.answer(
         "👋 Привет! Я скачиваю видео с YouTube, TikTok и Instagram.\n\n"
-        "Нажми кнопку ниже, вставь ссылку — и видео придёт сюда в чат.",
-        reply_markup=kb.as_markup()
+        "Просто отправь мне ссылку на видео — и я пришлю его сюда.\n\n"
+        "▶ YouTube\n"
+        "♪ TikTok\n"
+        "◈ Instagram (только публичные посты)"
     )
 
 
@@ -45,6 +53,8 @@ async def cmd_help(message: Message):
     kb.adjust(1)
     await message.answer("❓ Чем могу помочь?", reply_markup=kb.as_markup())
 
+
+# ── FAQ callbacks ─────────────────────────────────────────────────────────────
 
 @dp.callback_query(F.data == "faq_sites")
 async def faq_sites(call: CallbackQuery):
@@ -76,9 +86,65 @@ async def faq_error(call: CallbackQuery):
 async def faq_limit(call: CallbackQuery):
     await call.message.edit_text(
         "📏 <b>Лимит размера — 50 МБ</b>\n\n"
-        "Это ограничение Telegram Bot API.\n"
-        "Большинство коротких видео до 5-7 минут укладываются в лимит.\n\n"
+        "Большинство коротких видео до 5-7 минут укладываются в лимит.\n"
         "Длинные видео с YouTube могут не пройти.",
         parse_mode="HTML"
     )
     await call.answer()
+
+
+# ── Обработка ссылок ──────────────────────────────────────────────────────────
+
+@dp.message(F.text)
+async def handle_message(message: Message):
+    text = message.text.strip()
+
+    # Проверяем что это ссылка на поддерживаемый сайт
+    if not any(d in text for d in SUPPORTED):
+        await message.answer(
+            "🔗 Отправь мне ссылку на видео с YouTube, TikTok или Instagram."
+        )
+        return
+
+    status = await message.answer("⏳ Скачиваю видео, подождите...")
+
+    try:
+        # Скачиваем в отдельном потоке чтобы не блокировать бота
+        loop = asyncio.get_event_loop()
+        filepath = await loop.run_in_executor(None, download_video, text)
+
+        # Отправляем видео
+        with open(filepath, "rb") as f:
+            await message.answer_video(
+                video=f,
+                caption="✅ Готово!",
+                supports_streaming=True,
+            )
+
+    except Exception as e:
+        logger.error(f"Download failed: {e}")
+        await message.answer(
+            f"❌ Не удалось скачать видео.\n\n"
+            f"Причина: {str(e)}\n\n"
+            "Убедись что видео публичное и попробуй ещё раз."
+        )
+    finally:
+        # Удаляем сообщение "скачиваю..."
+        await status.delete()
+        # Удаляем файл с сервера
+        try:
+            if 'filepath' in locals() and os.path.exists(filepath):
+                os.remove(filepath)
+        except Exception:
+            pass
+
+
+# ── Запуск ────────────────────────────────────────────────────────────────────
+
+async def main():
+    logger.info("Bot started")
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
