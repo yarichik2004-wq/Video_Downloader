@@ -31,11 +31,14 @@ dp = Dispatcher()
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    print(f"Пришла команда старт от {message.from_user.id}") # Это появится в логах Railway
+    webapp_url = os.getenv("WEBAPP_URL")
+    user_id = message.from_user.id
+    # Передаём user_id в URL как параметр
+    url_with_id = f"{webapp_url}?uid={user_id}"
     kb = InlineKeyboardBuilder()
-    kb.button(text="🎬 Скачать видео", web_app=WebAppInfo(url=WEBAPP_URL))
+    kb.button(text="🎬 Скачать видео", web_app=WebAppInfo(url=url_with_id))
     await message.answer(
-        "👋 Привет! Нажми кнопку ниже, чтобы открыть приложение.",
+        "👋 Привет! Нажми кнопку ниже, вставь ссылку — и видео придёт сюда в чат.",
         reply_markup=kb.as_markup()
     )
 

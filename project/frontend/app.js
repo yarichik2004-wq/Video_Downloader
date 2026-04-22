@@ -57,14 +57,7 @@ window.addEventListener("load", () => {
     }
 
     const user = tg?.initDataUnsafe?.user;
-    // Пробуем получить user_id из Telegram, потом из URL (для десктопа)
-    const userId = tg?.initDataUnsafe?.user?.id 
-      || new URLSearchParams(window.location.search).get("uid");
-
-    if (!userId) {
-      showStatus("❌ Открой приложение через кнопку в боте", "error");
-      return;
-    }
+    const userId = user?.id || tg?.initDataUnsafe?.user?.id || null;
 
     if (!userId) {
       // Для отладки — покажем что реально приходит от Telegram
