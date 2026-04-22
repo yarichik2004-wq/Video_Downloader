@@ -14,6 +14,17 @@ MAX_FILESIZE = 50 * 1024 * 1024
 # Путь к кукам (важно для YouTube)
 COOKIES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt")
 
+# Список поддерживаемых доменов
+SUPPORTED_DOMAINS = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"]
+
+def is_supported_url(url: str) -> bool:
+    """Проверяет, поддерживается ли ссылка ботом."""
+    return any(domain in url.lower() for domain in SUPPORTED_DOMAINS)
+
+def is_youtube(url: str) -> bool:
+    """Проверяет, является ли ссылка YouTube ссылкой."""
+    return "youtube.com" in url.lower() or "youtu.be" in url.lower()
+
 def download_video(url: str) -> str:
     """Скачивает видео, используя установленный плагин get-pot."""
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
