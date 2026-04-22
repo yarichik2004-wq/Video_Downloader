@@ -77,6 +77,7 @@ async def root():
     return RedirectResponse(url="/app")
 
 
+
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
@@ -84,6 +85,11 @@ async def webhook(request: Request):
     await dp.feed_update(bot, update)
     return {"ok": True}
 
+@app.get("/set-webhook")
+async def set_webhook():
+    await bot.set_webhook(WEBHOOK_URL)
+    info = await bot.get_webhook_info()
+    return {"url": info.url, "ok": True}
 
 class DownloadRequest(BaseModel):
     url: str
