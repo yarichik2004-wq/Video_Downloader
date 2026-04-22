@@ -1,7 +1,5 @@
 """
 📁 backend/main.py
-FastAPI сервер — обрабатывает API запросы, статику и webhook бота.
-Всё на одном порту 8000.
 """
 
 import os
@@ -12,6 +10,7 @@ import hmac
 from contextlib import asynccontextmanager
 from urllib.parse import parse_qsl
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,16 +35,24 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-# ── Lifespan — запуск и остановка ────────────────────────────────────────────
+async def keep_alive():
+    while True:
+        await asyncio.sleep(300)
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get(f"{WEBHOOK_HOST}/health")
+            logger.info("Keep-alive ping sent")
+        except Exception:
+            pass
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Старт
     await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_webhook(WEBHOOK_URL)
+    asyncio.create_task(keep_alive())
     logger.info(f"Webhook set: {WEBHOOK_URL}")
     yield
-    # Остановка
     await bot.delete_webhook()
     await bot.session.close()
     logger.info("Webhook deleted")
@@ -60,20 +67,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Путь к frontend/ от корня проекта
 frontend_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend"
 )
 
 
-# ── Редирект с / на /app ──────────────────────────────────────────────────────
-
 @app.get("/")
 async def root():
     return RedirectResponse(url="/app")
 
-
-# ── Webhook для Telegram ──────────────────────────────────────────────────────
 
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -82,8 +84,6 @@ async def webhook(request: Request):
     await dp.feed_update(bot, update)
     return {"ok": True}
 
-
-# ── Модели ────────────────────────────────────────────────────────────────────
 
 class DownloadRequest(BaseModel):
     url: str
@@ -94,8 +94,6 @@ class DownloadRequest(BaseModel):
 class InfoRequest(BaseModel):
     url: str
 
-
-# ── Верификация Telegram initData ─────────────────────────────────────────────
 
 def verify_telegram_init_data(init_data: str, bot_token: str) -> bool:
     try:
@@ -119,8 +117,6 @@ def verify_telegram_init_data(init_data: str, bot_token: str) -> bool:
         return False
 
 
-# ── API эндпоинты ─────────────────────────────────────────────────────────────
-
 @app.get("/health")
 async def health():
     return {"status": "ok"}
@@ -131,10 +127,9 @@ async def video_info(req: InfoRequest):
     if not is_supported_url(req.url):
         raise HTTPException(400, "Неподдерживаемый сайт.")
     try:
-        info = get_video_info(req.url)
-        return info
+        return get_video_info(req.url)
     except Exception as e:
-        raise HTTPException(400, f"Не удалось получить информацию: {str(e)}")
+        raise HTTPException(400, str(e))
 
 
 @app.post("/api/download")
@@ -167,8 +162,5 @@ async def _download_and_send(url: str, user_id: int):
         if filepath and os.path.exists(filepath):
             os.remove(filepath)
 
-
-# ── Статика фронтенда — ПОСЛЕДНЕЙ ────────────────────────────────────────────
-# Важно монтировать после всех маршрутов
 
 app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="frontend")
