@@ -101,7 +101,7 @@ def download_video(url: str) -> str:
     ydl_opts = {
         "outtmpl": output_template,
         # Ищем лучшее видео и аудио независимо от расширения, потом склеим в mp4
-        "format": "bestvideo+bestaudio/best", 
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best", 
         "merge_output_format": "mp4",
         "max_filesize": MAX_FILESIZE,
         "quiet": True,
@@ -140,7 +140,13 @@ def download_video(url: str) -> str:
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         # После merge_output_format расширение файла всегда будет .mp4
-        filename = ydl.prepare_filename(info).rsplit('.', 1)[0] + ".mp4"
+        filename = ydl.prepare_filename(info)
+        if not os.path.exists(filename):
+            mp4_path = os.path.splitext(filename)[0] + ".mp4"
+            if os.path.exists(mp4_path):
+                filename = mp4_path
+            else:
+                raise FileNotFoundError(f"Файл не найден: {filename}")
 
     if not os.path.exists(filename):
         raise FileNotFoundError(f"Файл не найден: {filename}")
