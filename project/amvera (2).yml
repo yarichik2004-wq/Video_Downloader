@@ -1,5 +1,5 @@
 meta:
-  environment: docker
+  environment: python
   toolchain:
     name: pip
     version: "3.11"
