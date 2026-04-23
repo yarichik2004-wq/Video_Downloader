@@ -100,7 +100,8 @@ def download_video(url: str) -> str:
 
     ydl_opts = {
         "outtmpl": output_template,
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        # Ищем лучшее видео и аудио независимо от расширения, потом склеим в mp4
+        "format": "bestvideo+bestaudio/best", 
         "merge_output_format": "mp4",
         "max_filesize": MAX_FILESIZE,
         "quiet": True,
@@ -124,9 +125,9 @@ def download_video(url: str) -> str:
                 ydl_opts["headers"] = {"X-Goog-Visitor-Id": visitor_data}
             logger.info("YouTube download with PO Token")
         else:
-            # Fallback без токена
+            # Fallback без токена — часто работает для Shorts
             ydl_opts["extractor_args"] = {
-                "youtube": {"player_client": ["ios"]}
+                "youtube": {"player_client": ["ios", "android"]}
             }
             logger.info("YouTube download without PO Token (fallback)")
     else:
@@ -138,18 +139,14 @@ def download_video(url: str) -> str:
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
+        # После merge_output_format расширение файла всегда будет .mp4
+        filename = ydl.prepare_filename(info).rsplit('.', 1)[0] + ".mp4"
 
     if not os.path.exists(filename):
-        mp4_path = os.path.splitext(filename)[0] + ".mp4"
-        if os.path.exists(mp4_path):
-            filename = mp4_path
-        else:
-            raise FileNotFoundError(f"Файл не найден: {filename}")
+        raise FileNotFoundError(f"Файл не найден: {filename}")
 
     logger.info(f"Downloaded: {filename} ({os.path.getsize(filename)} bytes)")
     return filename
-
 
 def get_video_info(url: str) -> dict:
     ydl_opts = {"quiet": True, "no_warnings": True, "skip_download": True}
