@@ -3,6 +3,4 @@ yt-dlp==2024.5.27
 python-dotenv==1.0.1
 aiofiles==23.2.1
 requests==2.31.0
-yt-dlp
-yt-dlp-get-pot
-playwright
+yt-dlp-get-pot==0.4.0
