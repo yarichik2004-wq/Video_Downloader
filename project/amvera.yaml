@@ -1,9 +1,9 @@
 meta:
-  environment: python
+  environment: docker
   toolchain:
     name: pip
-    version: 3.11
+    version: "3.11"
 build:
   requirementsPath: requirements.txt
 run:
-  scriptName: main.py
+  scriptName: bot/main.py
