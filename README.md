@@ -5,21 +5,15 @@
 ## Структура проекта
 
 ```
-project/
+VIDEO_DOWNLOADER_BOT
 ├── bot/
 │   └── main.py          # Telegram-бот (aiogram 3)
-├── backend/
-│   └── main.py          # FastAPI REST API
 ├── downloader/
 │   └── core.py          # Логика скачивания (yt-dlp)
-├── frontend/
-│   ├── index.html       # Интерфейс Mini App
-│   ├── style.css        # Стили (адаптируются под тему TG)
-│   └── app.js           # Логика фронтенда
 ├── .env.example         # Шаблон переменных окружения
 ├── requirements.txt
 ├── Dockerfile
-└── README.md
+└── cookies.txt
 ```
 
 ## Быстрый старт
