@@ -1,21 +1,15 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ffmpeg nodejs npm && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install bgutil-ytdlp-pot-provider
+RUN npx --yes @bgutil/ytdlp-pot-provider setup
 
 COPY . .
-
-# гарантируем наличие cookies
-COPY cookies.txt /app/cookies.txt
-
-# папка для видео (если используешь /app/videos — можно убрать)
-RUN mkdir -p /app/videos
-
-# права на cookies (на всякий)
-RUN chmod 644 /app/cookies.txt || true
+RUN mkdir -p /tmp/videos
 
 CMD ["python", "bot/main.py"]
