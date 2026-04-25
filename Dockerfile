@@ -6,6 +6,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip uninstall -y yt-dlp-get-pot bgutil-ytdlp-pot-provider || true
 RUN pip install -U yt-dlp
 
 COPY . .
