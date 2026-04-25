@@ -1,19 +1,21 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y ffmpeg nodejs npm && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Официальный провайдер PO Token для yt-dlp
-RUN pip install bgutil-ytdlp-pot-provider
-
-# Устанавливаем bgutil скрипты
-RUN npx --yes @bgutil/ytdlp-pot-provider setup
-
 COPY . .
-RUN mkdir -p /tmp/videos
+
+# гарантируем наличие cookies
+COPY cookies.txt /app/cookies.txt
+
+# папка для видео (если используешь /app/videos — можно убрать)
+RUN mkdir -p /app/videos
+
+# права на cookies (на всякий)
+RUN chmod 644 /app/cookies.txt || true
 
 CMD ["python", "bot/main.py"]
