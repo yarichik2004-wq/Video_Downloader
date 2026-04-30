@@ -16,11 +16,18 @@ MAX_FILESIZE = 50 * 1024 * 1024
 COOKIES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt")
 SUPPORTED_DOMAINS = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"]
 
-# Прокси из переменных окружения
+import random
+
 PROXY_USER = os.getenv("PROXY_USER")
 PROXY_PASS = os.getenv("PROXY_PASS")
-# Webshare rotating proxy — один адрес, автоматически ротирует между всеми 10
-PROXY_URL = f"http://{PROXY_USER}:{PROXY_PASS}@p.webshare.io:80" if PROXY_USER else None
+PROXY_LIST = os.getenv("PROXY_LIST", "").split(",")
+
+def get_proxy() -> str:
+    """Случайный прокси из списка."""
+    if not PROXY_USER or not PROXY_LIST or not PROXY_LIST[0]:
+        return None
+    proxy = random.choice(PROXY_LIST).strip()
+    return f"http://{PROXY_USER}:{PROXY_PASS}@{proxy}"
 
 
 def is_supported_url(url: str) -> bool:
@@ -56,7 +63,7 @@ def download_video(url: str) -> str:
 
     if is_youtube(url):
         ydl_opts.update({
-        "proxy": PROXY_URL,
+        "proxy": get_proxy(),
         "cookiefile": COOKIES_PATH if os.path.exists(COOKIES_PATH) else None,
         "extractor_args": {
             "youtube": {
@@ -67,15 +74,15 @@ def download_video(url: str) -> str:
 
     elif is_instagram(url):
         ydl_opts.update({
-            "proxy": PROXY_URL,
+           "proxy": get_proxy(),
             "cookiefile": COOKIES_PATH if os.path.exists(COOKIES_PATH) else None,
         })
-        logger.info(f"Instagram download via proxy: {PROXY_URL is not None}")
+        logger.info(f"Instagram download via proxy: {get_proxy() is not None}")
 
     else:
         # TikTok — тоже через прокси
         ydl_opts.update({
-            "proxy": PROXY_URL,
+            "proxy": get_proxy(),
             "user_agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
