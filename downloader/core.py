@@ -36,6 +36,9 @@ def is_instagram(url: str) -> bool:
 
 
 def download_video(url: str) -> str:
+    import yt_dlp.utils
+    yt_dlp.utils._ydl_plugins = {}  # очищаем плагины
+    
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     unique_id = uuid.uuid4().hex
     output_template = os.path.join(DOWNLOAD_DIR, f"{unique_id}.%(ext)s")
@@ -53,13 +56,14 @@ def download_video(url: str) -> str:
 
     if is_youtube(url):
         ydl_opts.update({
-            "proxy": PROXY_URL,
-            "cookiefile": COOKIES_PATH if os.path.exists(COOKIES_PATH) else None,
-            "extractor_args": {
-                "youtube": {"player_client": ["web"]}
+        "proxy": PROXY_URL,
+        "cookiefile": COOKIES_PATH if os.path.exists(COOKIES_PATH) else None,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["ios"],  # ios не требует PO Token вообще
+                }
             },
         })
-        logger.info(f"YouTube download via proxy: {PROXY_URL is not None}")
 
     elif is_instagram(url):
         ydl_opts.update({
@@ -69,14 +73,15 @@ def download_video(url: str) -> str:
         logger.info(f"Instagram download via proxy: {PROXY_URL is not None}")
 
     else:
-        # TikTok — работает без прокси
+        # TikTok — тоже через прокси
         ydl_opts.update({
+            "proxy": PROXY_URL,
             "user_agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
         })
-        logger.info("TikTok download without proxy")
+        logger.info("TikTok download via proxy")
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
